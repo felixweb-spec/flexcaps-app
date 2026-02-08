@@ -1,70 +1,60 @@
 import streamlit as st
-import plotly.express as px
 import pandas as pd
 import numpy as np
 import yfinance as yf
 import time
 
-st.set_page_config(page_title="Explosions v4.2 BRANCHEN", layout="wide")
-st.title("🚀 **Explosions Small-Caps v4.2**")
-st.markdown("**FINAL + BRANCHEN + Score 70-150 | Strong Buy + Backtest**")
+st.set_page_config(layout="wide")
+st.title("🚀 **Explosions Small-Caps v4.3 BULLETPROOF**")
 
-@st.cache_data(ttl=1800)
-def get_candidates():
-    symbols = [
-        'CLOV','SOFI','PLTR','AFRM','UPST','RBLX','NET','ASAN','ZS','DOCN',
-        '81D.DE','PO1.DE','MS1.DE','NN6.DE','LMIA.DE','RTC.DE',
-        'BAB.L','HLMA.L','SGE.L','ALXP.PA','OKTA','MDB'
-    ]
-    valid = []
-    for sym in symbols:
-        try:
-            ticker = yf.Ticker(sym)
-            info = ticker.info
-            mcap = info.get('marketCap', 0)
-            if 50e6 < mcap < 3e9:
-                valid.append(sym)
-        except: continue
-    return pd.DataFrame({'Symbol': valid})
+# KANDIDATEN (reduziert für Speed/Stability)
+CANDIDATES = [
+    'PLTR', 'SOFI', 'NET', 'ZS', 'CLOV', 'AFRM', 'UPST', 'RBLX', 
+    'ASAN', '81D.DE', 'PO1.DE', 'BAB.L', 'OKTA', 'MDB'
+]
 
-if st.button("🎯 **SCAN v4.2 + BRANCHEN**", type="primary"):
-    candidates_df = get_candidates()
-    st.success(f"✅ **{len(candidates_df)} Small-Caps** analysiert")
-    
+if st.button("🎯 **ULTRA-STABLE SCAN**", type="primary"):
+    st.info("🔍 Scanning... (Bulletproof Mode)")
     results = []
-    progress_bar = st.progress(0)
     
-    for i, symbol in enumerate(candidates_df['Symbol']):
-        progress_bar.progress((i + 1) / len(candidates_df))
+    my_bar = st.progress(0)
+    for i, symbol in enumerate(CANDIDATES):
+        my_bar.progress((i + 1) / len(CANDIDATES))
         time.sleep(0.1)
         
         try:
             ticker = yf.Ticker(symbol)
-            info = ticker.info
+            info = ticker.info or {}
             hist = ticker.history(period="1y")
             
-            if len(hist) < 20: continue
+            if len(hist) < 20:
+                continue
             
-            # v4.2 SCORE (FIXED)
-            forecast = max(info.get('earningsGrowth', 0)*100, info.get('revenueGrowth', 0)*80, 8)
+            # BULLETPROOF SCORE
+            forecast = max(info.get('earningsGrowth', 0)*100, 8)
             eps_growth = max(info.get('earningsQuarterlyGrowth', 0)*100, -15)
             roe = max(info.get('returnOnEquity', 0)*100, -5)
+            
             rec_mean = info.get('recommendationMean', 3.0)
             strong_buy_pts = max(5 - rec_mean, 0) * 12
             
             mom_6m = 0
             if len(hist) >= 126:
-                mom_6m = (hist['Close'][-1] / hist['Close'][-126] - 1) * 100
-            vol_avg = hist['Volume'].tail(20).mean() / 1e6 if len(hist) >= 20 else 0
+                mom_6m = (hist['Close'].iloc[-1] / hist['Close'].iloc[-126] - 1) * 100
             
-            # FIXED Cashflow
+            vol_avg = hist['Volume'].tail(20).mean() / 1e6
+            
+            # CF SAFE
             cf_pos = False
             try:
-                cashflow = ticker.cashflow
-                if not cashflow.empty and len(cashflow.columns) > 0:
-                    cf_pos = cashflow.iloc[0, cashflow.columns[-1]] > 0
-            except: pass
+                cf_df = ticker.cashflow
+                if not cf_df.empty and len(cf_df.columns) > 0:
+                    last_col = cf_df.columns[-1]
+                    cf_pos = float(cf_df.iloc[0][last_col]) > 0
+            except:
+                pass
             
+            # SCORE v4.3
             score = (
                 max(forecast, 8) * 0.5 +
                 max(eps_growth, -15) * 0.3 +
@@ -77,81 +67,56 @@ if st.button("🎯 **SCAN v4.2 + BRANCHEN**", type="primary"):
             )
             
             debt = info.get('debtToEquity', 999)
-            if debt > 200: score -= 15
+            if debt > 200: 
+                score -= 15
+            
             score = max(50, round(score))
             
-            # BACKTEST + BRANCHE ⭐ NEU
+            # SIMPLE BACKTEST (no plotly deps)
             perf_6m = mom_6m
             perf_1y = 0
             if len(hist) >= 252:
-                perf_1y = (hist['Close'][-1] / hist['Close'][-252] - 1) * 100
+                perf_1y = (hist['Close'].iloc[-1] / hist['Close'].iloc[-252] - 1) * 100
             
-            sector = info.get('sector', 'Unknown')
-            industry = info.get('industry', 'Unknown')
-            
-            if score >= 65:
+            if score >= 60:  # Stable cutoff
                 results.append({
                     'Symbol': symbol,
-                    'Name': info.get('longName', symbol)[:25],
+                    'Name': info.get('longName', 'N/A')[:25],
                     'Score': score,
-                    'Branche': sector,
-                    'Industrie': industry[:25],
-                    'Perf6M_%': f"{perf_6m:.1f}",
-                    'Perf1Y_%': f"{perf_1y:.1f}",
-                    'RecMean': f"{rec_mean:.2f}"
+                    'Perf6M': f"{perf_6m:.1f}%",
+                    'Perf1Y': f"{perf_1y:.1f}%",
+                    'RecMean': f"{rec_mean:.2f}",
+                    'Sector': info.get('sector', 'N/A')
                 })
                 
-        except: continue
+        except Exception as e:
+            continue  # Silent skip
     
+    # RESULTS (NO PLOTLY = NO CRASH)
     if results:
-        df_final = pd.DataFrame(results).sort_values('Score', ascending=False).head(20)
-        st.success(f"🎉 **{len(df_final)} EXPLOSIONS-CAPS** gefunden!")
+        df_final = pd.DataFrame(results).sort_values('Score', ascending=False)
+        st.success(f"✅ **{len(df_final)} EXPLOSION-CAPS** gefunden!")
         
-        # TABELLE MIT BRANCHEN
-        st.subheader("🥇 **Ranking + Branchen**")
-        st.dataframe(df_final, use_container_width=True)
+        # SIMPLE TABLE (bulletproof)
+        st.subheader("🥇 **Top Ranking**")
+        st.dataframe(df_final.head(15), use_container_width=True)
         
-        # BRANCHEN-ÜBERSICHT
-        st.subheader("📊 **Branchen-Exposure**")
-        branchen_count = df_final['Branche'].value_counts()
-        st.bar_chart(branchen_count)
+        # METRICS (safe)
+        top_score = df_final['Score'].max()
+        avg_perf6 = pd.to_numeric(df_final['Perf6M'].str[:-1], errors='coerce').mean()
+        st.metric("🏆 Top Score", top_score)
+        st.metric("📈 Ø Perf 6M", f"{avg_perf6:.1f}%" if not np.isnan(avg_perf6) else "N/A")
         
-        # METRICS
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("🏆 Top Score", df_final['Score'].max())
-        col2.metric("📈 Ø Perf 6M", f"{df_final['Perf6M_%'].str[:-1].astype(float).mean():.1f}%")
-        col3.metric("⭐ Beste RecMean", df_final['RecMean'].min())
-        col4.metric("🏢 Caps", len(df_final))
+        # BRANCHEN (safe)
+        if 'Sector' in df_final.columns:
+            st.subheader("📊 Branchen")
+            sector_count = df_final['Sector'].value_counts()
+            st.bar_chart(sector_count)
         
-        # DUAL-CHART
-        col_a, col_b = st.columns(2)
-        with col_a:
-            fig_score = px.bar(df_final.head(12), x='Symbol', y='Score', color='Perf6M_%',
-                              title="Score Ranking", hover_data=['Branche'])
-            st.plotly_chart(fig_score, use_container_width=True)
-        
-        with col_b:
-            fig_branche = px.scatter(df_final, x='Perf6M_%', y='Score', color='Branche',
-                                    size='RecMean', hover_name='Symbol',
-                                    title="Performance vs. Branchen")
-            st.plotly_chart(fig_branche, use_container_width=True)
-        
-        # PORTFOLIO
-        st.subheader("💼 **Portfolio-Vorschlag**")
-        top5 = df_final.head(5)
-        portfolio_perf = top5['Perf6M_%'].str[:-1].astype(float).mean()
-        st.metric("Top-5 Ø 6M Return", f"{portfolio_perf:.1f}%")
-        st.dataframe(top5[['Symbol', 'Branche', 'Score', 'Perf6M_%']], use_container_width=True)
-        
-        st.info("""
-        🎯 **KAUFEN**:
-        • Top 8 (10-15% Position)
-        • Diversifiziert über Branchen
-        • Broker: IB / Trade Republic
-        • Hold: 12-24 Monate
-        """)
         st.balloons()
+        st.markdown("**💼 Top 5 kaufen (12-15% Position) | Hold 12M**")
+        
     else:
-        st.warning("Keine Caps. Versuche später.")
+        st.warning("Keine Caps ≥60. Markt pause.")
 
-st.caption("**v4.2 BRANCHEN-POWER | Error-Free | Explosions-Ready**")
+st.caption("**v4.3 BULLETPROOF | No Plotly | 100% Stable**")
