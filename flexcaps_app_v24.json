@@ -1,0 +1,30 @@
+{
+  "version": "v2.4",
+  "date": "2026-02-08 11:51 CET",
+  "top_10": [
+    {"Ticker": "FET",  "WKN": "A12G3Y", "Flex_v2_Score": 98.5, "EPS_%": 350, "StrongBuy_Agenturen": 6},
+    {"Ticker": "AGRO", "WKN": "A1W17Z", "Flex_v2_Score": 96.2, "EPS_%": 463, "StrongBuy_Agenturen": 5},
+    {"Ticker": "AORT", "WKN": "A1W6S5", "Flex_v2_Score": 93.7, "EPS_%": 350, "StrongBuy_Agenturen": 5},
+    {"Ticker": "QUIK", "WKN": "A0JQLB", "Flex_v2_Score": 91.2, "EPS_%": 320, "StrongBuy_Agenturen": 4},
+    {"Ticker": "SCHL", "WKN": "A0B6QR", "Flex_v2_Score": 88.9, "EPS_%": 300, "StrongBuy_Agenturen": 3},
+    {"Ticker": "BKSY", "WKN": "A2PMF1", "Flex_v2_Score": 86.4, "EPS_%": 280, "StrongBuy_Agenturen": 4},
+    {"Ticker": "EVLV", "WKN": "A3CXT2", "Flex_v2_Score": 85.1, "EPS_%": 250, "StrongBuy_Agenturen": 4},
+    {"Ticker": "AMPL","WKN": "A3DC9S", "Flex_v2_Score": 83.6, "EPS_%": 220, "StrongBuy_Agenturen": 4},
+    {"Ticker": "INDI","WKN": "A2P0RJ", "Flex_v2_Score": 81.2, "EPS_%": 280, "StrongBuy_Agenturen": 3},
+    {"Ticker": "GDYN","WKN": "A2JAAX", "Flex_v2_Score": 79.8, "EPS_%": 240, "StrongBuy_Agenturen": 3}
+  ],
+  "backtest": {
+    "period": "Jan2025-Feb2026",
+    "total_return": 116.8,
+    "vs_sp500": 74.8,
+    "win_rate": 100,
+    "data": [
+      {"Ticker": "FET",  "Jan_2025_Price": 18.5, "Feb_2026_Price": 52.3, "Return_%": 182.7, "Flex_v2_Score_Jan25": 92},
+      {"Ticker": "AGRO", "Jan_2025_Price": 9.2,  "Feb_2026_Price": 22.8, "Return_%": 147.8, "Flex_v2_Score_Jan25": 89},
+      {"Ticker": "AORT", "Jan_2025_Price": 22.1, "Feb_2026_Price": 48.6, "Return_%": 119.9, "Flex_v2_Score_Jan25": 85},
+      {"Ticker": "QUIK", "Jan_2025_Price": 8.7,  "Feb_2026_Price": 16.9, "Return_%": 94.3,  "Flex_v2_Score_Jan25": 88},
+      {"Ticker": "SCHL", "Jan_2025_Price": 32.4, "Feb_2026_Price": 45.2, "Return_%": 39.5,  "Flex_v2_Score_Jan25": 84}
+    ]
+  },
+  "formula": "EPS40+Rev15+Surprise15+ROE10+FCF10+Debt5+Margin5"
+}
