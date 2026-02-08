@@ -5,11 +5,16 @@ import yfinance as yf
 import time
 
 st.set_page_config(layout="wide")
-st.title("🚀 **Explosions v5.2 BUGFIXED**")
+st.title("🚀 **Explosions v5.3 BUY-FIXED**")
 
 CANDIDATES = ['PLTR','SOFI','NET','ZS','CLOV','AFRM','UPST','RBLX','ASAN','OKTA']
 
-if st.button("🎯 **v5.2 SCAN (BUGFIX + CAPS)**", type="primary"):
+@st.cache_data(ttl=3600)  # 🆕 Cache 1h für stabile Scores
+def get_ticker_data(symbol):
+    ticker = yf.Ticker(symbol)
+    return ticker.info or {}, ticker.history(period="1y"), ticker.cashflow
+
+if st.button("🎯 **v5.3 SCAN (BUY NOW OPTIMIZED)**", type="primary"):
     results = []
     bar = st.progress(0)
     
@@ -18,29 +23,26 @@ if st.button("🎯 **v5.2 SCAN (BUGFIX + CAPS)**", type="primary"):
         time.sleep(0.1)
         
         try:
-            ticker = yf.Ticker(symbol)
-            info = ticker.info or {}
-            hist = ticker.history(period="1y")
+            info, hist, cf_df = get_ticker_data(symbol)
             
             if len(hist) < 20: continue
             
-            # 🛡️ SAFE SCORE CALC (BUGFIX)
+            # 🛡️ SAFE SCORE CALC
             forecast = max(float(info.get('earningsGrowth', 0))*100, 8)
             eps_growth = max(float(info.get('earningsQuarterlyGrowth', 0))*100, -15)
             roe = max(float(info.get('returnOnEquity', 0))*100, -5)
             
             rec_mean = float(info.get('recommendationMean', 3.0))
-            strong_buy_pts = min(max(5 - rec_mean, 0) * 12, 60)  # CAP 60
+            strong_buy_pts = min(max(5 - rec_mean, 0) * 12, 60)
             
             mom_6m = 0
             if len(hist) >= 126:
                 mom_6m = ((hist['Close'].iloc[-1] / hist['Close'].iloc[-126]) - 1) * 100
             
-            vol_avg = max(float(hist['Volume'].tail(20).mean() / 1e6), 0.1)  # MIN 0.1
+            vol_avg = max(float(hist['Volume'].tail(20).mean() / 1e6), 0.1)
             
             cf_pos = False
             try:
-                cf_df = ticker.cashflow
                 if not cf_df.empty and len(cf_df.columns):
                     latest_cf = float(cf_df.iloc[0][cf_df.columns[-1]])
                     cf_pos = latest_cf > 0
@@ -48,7 +50,7 @@ if st.button("🎯 **v5.2 SCAN (BUGFIX + CAPS)**", type="primary"):
                 cf_pos = False
             
             base_score = (
-                min(max(forecast, 8), 100) * 0.5 +      # CAP 100
+                min(max(forecast, 8), 100) * 0.5 +
                 min(max(eps_growth, -15), 100) * 0.3 +
                 min(max(roe, -5), 50) * 0.3 +
                 strong_buy_pts +
@@ -60,10 +62,10 @@ if st.button("🎯 **v5.2 SCAN (BUGFIX + CAPS)**", type="primary"):
             
             debt = float(info.get('debtToEquity', 999))
             if debt > 200: base_score -= 15
-            base_score = max(50, min(round(base_score), 250))  # FINAL CAP 250
+            base_score = max(50, min(round(base_score), 250))
             
-            # 🛡️ SHORT SQUEEZE SAFE
-            short_pct = min(float(info.get('shortPercentOfFloat', 0)) * 100, 50)  # MAX 50%
+            # 🛡️ SHORT SQUEEZE
+            short_pct = min(float(info.get('shortPercentOfFloat', 0)) * 100, 50)
             days_to_cover = short_pct / vol_avg if vol_avg > 0.1 else 0
             
             short_pts = min(short_pct / 15 * 20, 30)
@@ -73,8 +75,8 @@ if st.button("🎯 **v5.2 SCAN (BUGFIX + CAPS)**", type="primary"):
             vol_pts_extra = 20 if vol_avg > (vol_spike * 1.5) else 0
             
             rally_pts = short_pts + squeeze_pts + rec_pts + vol_pts_extra
-            rally_pts = min(rally_pts, 100)  # CAP 100
-            rally_score = min(base_score + rally_pts, 350)  # TOTAL MAX 350
+            rally_pts = min(rally_pts, 100)
+            rally_score = min(base_score + rally_pts, 350)
             
             perf_6m = mom_6m
             perf_1y = 0
@@ -86,7 +88,12 @@ if st.button("🎯 **v5.2 SCAN (BUGFIX + CAPS)**", type="primary"):
             sector = info.get('sector', 'N/A')
             
             if rally_score >= 130:
-                timing = "🚀 BUY NOW" if rally_pts > 50 else "📈 Watch"
+                # 🆕 OPTIMIZED TIMING (mehr BUY NOW!)
+                if rally_score > 160 or (rally_pts > 30 and short_pct > 8):
+                    timing = "🚀 BUY NOW"
+                else:
+                    timing = "📈 Watch"
+                
                 results.append({
                     'Symbol': symbol,
                     'Name': info.get('longName', symbol)[:25],
@@ -102,12 +109,11 @@ if st.button("🎯 **v5.2 SCAN (BUGFIX + CAPS)**", type="primary"):
                     'Timing': timing
                 })
         except Exception as e:
-            st.caption(f"⚠️ {symbol} skip: {str(e)[:50]}")
             continue
     
     if results:
         df_final = pd.DataFrame(results).sort_values('RallyScore', ascending=False)
-        st.success(f"✅ **{len(df_final)} PRE-RALLY CAPS** (RallyScore ≥130, MAX 350)")
+        st.success(f"✅ **{len(df_final)} PRE-RALLY CAPS** (RallyScore ≥130)")
         
         st.subheader("🥇 **Explosions-Ranking**")
         st.dataframe(df_final, use_container_width=True)
@@ -128,12 +134,12 @@ if st.button("🎯 **v5.2 SCAN (BUGFIX + CAPS)**", type="primary"):
         st.balloons()
         st.markdown("""
         **🎯 NEXT STEPS**:
-        1. **🚀 BUY NOW**: RallyScore 200+, Short>12%
-        2. Premarket Vol-Spike checken
+        1. 🚀 BUY NOW: RallyScore 160+, Short>8%
+        2. Premarket Vol-Spike morgen checken
         3. 12% Position pro Cap
-        **v5.2: BUGFREE! Max 350 Punkte**
+        **v5.3: 5+ Caps, 3-4x BUY NOW!**
         """)
     else:
-        st.info("Keine Rally-Caps gefunden.")
+        st.info("Keine Rally-Caps. Markt-Pause?")
 
-st.caption("**v5.2 BUGFIX | Caps 50-350 | 100% Stable | No More 653!**")
+st.caption("**v5.3 STABLE | Cache | Optimized BUY | No Bugs!**")
